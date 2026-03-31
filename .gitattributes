@@ -1,0 +1,26 @@
+# Auto-detect text files and normalise line endings
+* text=auto eol=lf
+
+# Rust sources
+*.rs text diff=rust
+*.toml text
+*.lock text -diff
+
+# Shell / CI
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.nix text eol=lf
+
+# Documentation
+*.md text diff=markdown
+LICENSE text
+
+# Fonts — binary
+*.ttf binary
+*.otf binary
+
+# Images — binary
+*.png binary
+*.jpg binary
+*.svg text

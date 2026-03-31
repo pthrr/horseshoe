@@ -1,0 +1,137 @@
+version: '3'
+
+vars:
+  TARGET_X86: x86_64-unknown-linux-musl
+  TARGET_ARM: aarch64-unknown-linux-musl
+  BINARY_X86: target/{{.TARGET_X86}}/release/hs
+  BINARY_ARM: target/{{.TARGET_ARM}}/release/hs
+
+tasks:
+  default:
+    desc: List available tasks
+    silent: true
+    cmds:
+      - task --list
+
+  build:
+    desc: Build debug binary
+    cmds:
+      - cargo build
+
+  release:
+    desc: Build static musl release binaries (x86_64 + aarch64)
+    cmds:
+      - cargo build --target {{.TARGET_X86}} --release
+      - cargo build --target {{.TARGET_ARM}} --release
+      - ls -lh {{.BINARY_X86}} {{.BINARY_ARM}}
+
+  release:x86:
+    desc: Build static musl release binary (x86_64 only)
+    cmds:
+      - cargo build --target {{.TARGET_X86}} --release
+      - ls -lh {{.BINARY_X86}}
+
+  release:arm:
+    desc: Build static musl release binary (aarch64 only)
+    cmds:
+      - cargo build --target {{.TARGET_ARM}} --release
+      - ls -lh {{.BINARY_ARM}}
+
+  release:verify:
+    desc: Verify release binaries are fully static
+    cmds:
+      - file {{.BINARY_X86}}
+      - file {{.BINARY_ARM}}
+
+  clean:
+    desc: Clean build artifacts
+    cmds:
+      - cargo clean
+
+  run:
+    desc: Build and run debug binary
+    cmds:
+      - cargo run
+
+  install:
+    desc: Install native release binary to ~/bin
+    cmds:
+      - cargo build --target $(uname -m)-unknown-linux-musl --release
+      - mkdir -p ~/bin
+      - cp target/$(uname -m)-unknown-linux-musl/release/hs ~/bin/hs
+      - echo "Installed hs to ~/bin/hs"
+
+  test:unit:
+    desc: Run unit tests
+    cmds:
+      - cargo test --lib
+
+  test:conformance:
+    desc: Run VT conformance tests
+    cmds:
+      - cargo test --test vt_conformance
+
+  test:integration:
+    desc: Run VT integration tests
+    cmds:
+      - cargo test --test vt_integration
+
+  test:system:
+    desc: Run Python system tests (PTY latency, event loop simulation)
+    dir: tests/system
+    cmds:
+      - uv run python -m unittest test_pty_latency -v
+
+  test:system:clipboard:
+    desc: Run clipboard system tests
+    dir: tests/system
+    cmds:
+      - uv run python -m unittest test_clipboard -v
+
+  test:system:sim:
+    desc: Run event loop simulation tests only (no Wayland needed)
+    dir: tests/system
+    cmds:
+      - uv run python -m unittest test_pty_latency.TestEventLoopSimulation -v
+
+  test:all:
+    desc: Run all tests (unit, conformance, integration)
+    cmds:
+      - task: test:unit
+      - task: test:conformance
+      - task: test:integration
+
+  lint:fmt:
+    desc: Format code
+    cmds:
+      - cargo fmt
+
+  lint:fmt-check:
+    desc: Check formatting without modifying
+    cmds:
+      - cargo fmt -- --check
+
+  lint:clippy:
+    desc: Run clippy lints on all targets
+    cmds:
+      - cargo clippy --no-deps --all-targets -- -D warnings
+
+  bench:
+    desc: Run criterion benchmarks
+    cmds:
+      - cargo bench
+
+  coverage:
+    desc: Generate line coverage report (lib only)
+    cmds:
+      - cargo llvm-cov --lib
+
+  coverage:check:
+    desc: Fail if line coverage drops below threshold
+    cmds:
+      - cargo llvm-cov --lib --fail-under-lines 80
+
+  doc:
+    desc: Build and open rustdoc
+    cmds:
+      - cargo doc --no-deps --open

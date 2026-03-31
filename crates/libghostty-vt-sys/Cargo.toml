@@ -1,0 +1,6 @@
+[package]
+name = "libghostty-vt-sys"
+version = "0.1.1"
+edition = "2024"
+links = "ghostty-vt"
+build = "build.rs"

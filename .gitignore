@@ -1,0 +1,16 @@
+/target
+*.so
+*.dylib
+.venv
+__pycache__
+
+# Nix build output symlink
+result
+result-*
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~

@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  ci:
+    name: CI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Check formatting
+        run: nix develop --command task lint:fmt-check
+
+      - name: Clippy
+        run: nix develop --command task lint:clippy
+
+      - name: Unit tests
+        run: nix develop --command task test:unit
+
+      - name: VT conformance tests
+        run: nix develop --command task test:conformance
+
+      - name: Integration tests
+        run: nix develop --command task test:integration
+
+      - name: Simulation system tests
+        run: nix develop --command task test:system:sim
+
+      - name: Coverage
+        run: nix develop --command task coverage:check
+
+      - name: Static release builds
+        run: nix develop --command task release
+
+      - name: Verify static binaries
+        run: nix develop --command task release:verify
+
+      - name: Upload x86_64 binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: hs-x86_64-linux
+          path: target/x86_64-unknown-linux-musl/release/hs
+          retention-days: 7
+
+      - name: Upload aarch64 binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: hs-aarch64-linux
+          path: target/aarch64-unknown-linux-musl/release/hs
+          retention-days: 7

@@ -1,0 +1,66 @@
+cognitive-complexity-threshold = 25
+too-many-arguments-threshold = 7
+too-many-lines-threshold = 100
+type-complexity-threshold = 500
+min-ident-chars-threshold = 2
+msrv = "1.93.0"
+
+[[disallowed-methods]]
+path = "std::env::set_current_dir"
+reason = "Changes global state, use std::env::current_dir() and pass paths"
+
+[[disallowed-methods]]
+path = "std::env::set_var"
+reason = "Not thread-safe, use a configuration struct instead"
+
+[[disallowed-methods]]
+path = "std::env::remove_var"
+reason = "Not thread-safe, use a configuration struct instead"
+
+[[disallowed-methods]]
+path = "std::mem::forget"
+reason = "Use ManuallyDrop instead"
+
+[[disallowed-methods]]
+path = "std::process::exit"
+reason = "Does not run destructors, return from main instead"
+
+[[disallowed-methods]]
+path = "std::process::abort"
+reason = "Use panic! or return Result instead"
+
+[[disallowed-methods]]
+path = "std::panic::catch_unwind"
+reason = "Not a general error-handling mechanism, use Result"
+
+[[disallowed-methods]]
+path = "std::panic::resume_unwind"
+reason = "Not a general error-handling mechanism, use Result"
+
+[[disallowed-methods]]
+path = "std::mem::uninitialized"
+reason = "Use MaybeUninit instead"
+
+[[disallowed-methods]]
+path = "std::mem::zeroed"
+reason = "Use MaybeUninit or Default instead"
+
+[[disallowed-methods]]
+path = "std::thread::sleep_ms"
+reason = "Deprecated, use std::thread::sleep with Duration"
+
+[[disallowed-methods]]
+path = "std::mem::transmute"
+reason = "Use safe alternatives (as, From/Into, bytemuck)"
+
+[[disallowed-methods]]
+path = "std::mem::transmute_copy"
+reason = "Use safe alternatives (as, From/Into, bytemuck)"
+
+[[disallowed-methods]]
+path = "std::str::from_utf8_unchecked"
+reason = "Use from_utf8() and handle the error"
+
+[[disallowed-methods]]
+path = "std::string::String::from_utf8_unchecked"
+reason = "Use String::from_utf8() and handle the error"
