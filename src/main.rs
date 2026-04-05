@@ -9,7 +9,7 @@ use horseshoe::font;
 use horseshoe::pty;
 
 #[derive(Parser)]
-#[command(name = "hs", version = env!("CARGO_PKG_VERSION"), about = "Wayland terminal emulator")]
+#[command(name = "hs", version = env!("CARGO_PKG_VERSION"), about = "Wayland terminal emulator", trailing_var_arg = true)]
 struct Cli {
     /// Config file path [default: ~/.config/foot/foot.ini]
     #[arg(short, long)]
@@ -51,8 +51,8 @@ struct Cli {
     #[arg(short = 'd', long)]
     log_level: Option<String>,
 
-    /// Command to execute (must be last)
-    #[arg(short = 'e', num_args = 1.., trailing_var_arg = true)]
+    /// Command to execute (must be last; optionally preceded by -e for foot compat)
+    #[arg(allow_hyphen_values = true, num_args = 0..)]
     command: Vec<String>,
 
     #[command(flatten)]
@@ -188,10 +188,13 @@ fn main() -> std::process::ExitCode {
     // Apply CLI flags → config (file < CLI < -o overrides)
     apply_cli_to_config(&cli, &mut cfg);
 
-    let command: Option<Vec<String>> = if cli.command.is_empty() {
-        None
-    } else {
-        Some(cli.command)
+    // Strip leading "-e" for foot compatibility (foot accepts both `foot cmd` and `foot -e cmd`)
+    let command: Option<Vec<String>> = {
+        let mut args = cli.command;
+        if args.first().is_some_and(|a| a == "-e") {
+            let _ = args.remove(0);
+        }
+        if args.is_empty() { None } else { Some(args) }
     };
 
     let debug = std::env::var_os("HAND_DEBUG").is_some();
