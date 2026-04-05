@@ -260,6 +260,27 @@ fn log_render_profile(
 /// does NOT contain the previous frame's content.  We must always copy the
 /// full retained buffer — selective/range-based copy is not possible here.
 fn copy_retained_to_shm(target: &mut RenderTarget<'_>) {
+    let shm_len = target.buf.len();
+    let ret_len = target.retained.len();
+    if shm_len != ret_len {
+        // Length mismatch can happen transiently during resize if the
+        // retained buffer was sized for a previous frame.  Truncate the
+        // copy to the shorter length and zero-fill any remainder in the
+        // SHM buffer to avoid stale pixels.
+        let copy_len = shm_len.min(ret_len);
+        if let (Some(dst), Some(src)) = (
+            target.buf.get_mut(..copy_len),
+            target.retained.get(..copy_len),
+        ) {
+            dst.copy_from_slice(src);
+        }
+        if let Some(rest) = target.buf.get_mut(copy_len..) {
+            for byte in rest {
+                *byte = 0;
+            }
+        }
+        return;
+    }
     target.buf.copy_from_slice(target.retained);
 }
 

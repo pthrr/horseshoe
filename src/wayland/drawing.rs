@@ -59,10 +59,17 @@ impl App {
         let stride = phys_w * 4;
         let buf_size = usize::try_from(stride * phys_h).expect("buffer size fits usize");
 
-        // Ensure pool is large enough for double-buffering (2 frames)
-        let pool_needed = buf_size * 2;
-        if self.wl.pool.len() < pool_needed {
-            let _ = self.wl.pool.resize(pool_needed);
+        // Ensure pool is large enough for triple-buffering (3 frames).
+        // Resize only when the pool is actually undersized — this path is
+        // hit on window resize, not every frame.
+        let pool_needed = buf_size * 3;
+        if self.wl.pool.len() < pool_needed && self.wl.pool.resize(pool_needed).is_err() {
+            // Pool resize failed (fd/mmap error).  Skip this frame rather
+            // than creating a buffer on an undersized pool, which can
+            // overlap compositor-held buffers and trigger a fatal Wayland
+            // protocol error.
+            eprintln!("hs: SHM pool resize failed, skipping frame");
+            return false;
         }
 
         // Compute values before borrowing pool mutably
@@ -85,11 +92,14 @@ impl App {
         let buf_height = u32_to_i32(phys_h);
         let stride_i32 = u32_to_i32(stride);
 
-        let (buffer, canvas) = self
-            .wl
-            .pool
-            .create_buffer(buf_width, buf_height, stride_i32, wl_shm::Format::Argb8888)
-            .expect("create buffer");
+        let Ok((buffer, canvas)) =
+            self.wl
+                .pool
+                .create_buffer(buf_width, buf_height, stride_i32, wl_shm::Format::Argb8888)
+        else {
+            // All pool buffers busy — skip frame, retry on next tick.
+            return false;
+        };
 
         // Update render state from terminal only when terminal content changed.
         // Cursor-blink frames skip this (~1.2ms saved at 1080p).

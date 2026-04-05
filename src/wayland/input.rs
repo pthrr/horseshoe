@@ -74,17 +74,21 @@ impl App {
                 let y_clamped = y.clamp(0.0, f64::from(self.geometry.height));
                 let y_int = float_to_i64(y_clamped);
                 let height_i64 = i64::from(self.geometry.height);
-                let scrollable_i = i64::try_from(scrollable).expect("scrollable fits i64");
+                let scrollable_i = i64::try_from(scrollable).unwrap_or(i64::MAX);
                 // target = y_int * scrollable / height  (integer division)
                 let target = if height_i64 == 0 {
                     0
                 } else {
                     y_int.saturating_mul(scrollable_i) / height_i64
                 };
-                let offset_i64 = i64::try_from(sb.offset).expect("scrollbar offset fits i64");
+                let offset_i64 = i64::try_from(sb.offset).unwrap_or(i64::MAX);
                 let delta = target - offset_i64;
                 if delta != 0 {
-                    let delta_isize = isize::try_from(delta).expect("scroll delta fits isize");
+                    let delta_isize = isize::try_from(delta).unwrap_or(if delta < 0 {
+                        isize::MIN
+                    } else {
+                        isize::MAX
+                    });
                     self.terminal.scroll_viewport_delta(delta_isize);
                     self.dirty = true;
                 }
@@ -702,7 +706,11 @@ impl App {
             let line_height = f64::from(self.font.cell_height.max(1));
             self.input.mouse.scroll_accum += vertical.absolute;
             let steps_f64 = (self.input.mouse.scroll_accum / line_height).trunc();
-            let steps = i32::try_from(float_to_i64(steps_f64)).expect("scroll steps fits i32");
+            let steps = i32::try_from(float_to_i64(steps_f64)).unwrap_or(if steps_f64 < 0.0 {
+                i32::MIN
+            } else {
+                i32::MAX
+            });
             self.input.mouse.scroll_accum -= f64::from(steps) * line_height;
             steps
         } else {

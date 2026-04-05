@@ -264,13 +264,12 @@ fn main() -> std::process::ExitCode {
         wayland::event_loop::debug_dump_grid(&mut app);
     }
 
+    let poll = std::time::Duration::from_millis(wayland::event_loop::EVENT_LOOP_POLL_MS);
     while app.running {
-        event_loop
-            .dispatch(
-                std::time::Duration::from_millis(wayland::event_loop::EVENT_LOOP_POLL_MS),
-                &mut app,
-            )
-            .expect("event loop dispatch failed");
+        if let Err(e) = event_loop.dispatch(poll, &mut app) {
+            eprintln!("hs: event loop error: {e}"); // fatal — break for cleanup
+            break;
+        }
     }
 
     // Persist clipboard content so it survives after exit

@@ -97,7 +97,9 @@ fn init_wayland(
     window.set_min_size(Some((MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT)));
     window.commit();
 
-    let pool_size = initial_width as usize * initial_height as usize * 4;
+    // Pre-allocate for triple-buffering (3 frames) so normal rendering
+    // never needs to resize the pool — resize only happens on window resize.
+    let pool_size = initial_width as usize * initial_height as usize * 4 * 3;
     let pool = SlotPool::new(pool_size, &shm).expect("failed to create SHM pool");
 
     let state = WlSetup {

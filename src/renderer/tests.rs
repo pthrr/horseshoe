@@ -3011,3 +3011,98 @@ fn test_draw_scrollbar_small_viewport() {
         "scrollbar thumb should be at least 10px, got {thumb_rows}"
     );
 }
+
+// ---- copy_retained_to_shm length mismatch guard tests ----
+
+#[test]
+fn test_copy_retained_to_shm_equal_lengths() {
+    let mut shm = vec![0u8; 100];
+    let mut retained = vec![42u8; 100];
+    let mut target = RenderTarget {
+        buf: &mut shm,
+        width: 5,
+        height: 5,
+        stride: 20,
+        retained: &mut retained,
+    };
+    copy_retained_to_shm(&mut target);
+    assert!(
+        target.buf.iter().all(|&b| b == 42),
+        "equal-length copy should transfer all bytes"
+    );
+}
+
+#[test]
+fn test_copy_retained_to_shm_retained_shorter() {
+    // Retained buffer is smaller than SHM (e.g. resize grew the window).
+    // Should copy what's available and zero-fill the rest.
+    let mut shm = vec![0xFFu8; 200];
+    let mut retained = vec![42u8; 100];
+    let mut target = RenderTarget {
+        buf: &mut shm,
+        width: 10,
+        height: 5,
+        stride: 40,
+        retained: &mut retained,
+    };
+    copy_retained_to_shm(&mut target);
+    // First 100 bytes should be from retained
+    assert!(
+        target
+            .buf
+            .get(..100)
+            .expect("first 100 bytes")
+            .iter()
+            .all(|&b| b == 42),
+        "first portion should be copied from retained"
+    );
+    // Remaining bytes should be zeroed
+    assert!(
+        target
+            .buf
+            .get(100..)
+            .expect("remaining bytes")
+            .iter()
+            .all(|&b| b == 0),
+        "remainder should be zero-filled"
+    );
+}
+
+#[test]
+fn test_copy_retained_to_shm_retained_longer() {
+    // Retained buffer is larger than SHM (e.g. resize shrank the window).
+    // Should copy only up to SHM length without panic.
+    let mut shm = vec![0u8; 100];
+    let mut retained = vec![42u8; 200];
+    let mut target = RenderTarget {
+        buf: &mut shm,
+        width: 5,
+        height: 5,
+        stride: 20,
+        retained: &mut retained,
+    };
+    copy_retained_to_shm(&mut target);
+    assert!(
+        target.buf.iter().all(|&b| b == 42),
+        "SHM buffer should be fully filled from retained"
+    );
+}
+
+#[test]
+fn test_copy_retained_to_shm_empty_retained() {
+    // Empty retained buffer (first frame before any render).
+    let mut shm = vec![0xFFu8; 100];
+    let mut retained: Vec<u8> = Vec::new();
+    let mut target = RenderTarget {
+        buf: &mut shm,
+        width: 5,
+        height: 5,
+        stride: 20,
+        retained: &mut retained,
+    };
+    copy_retained_to_shm(&mut target);
+    assert!(
+        target.buf.iter().all(|&b| b == 0),
+        "SHM buffer should be zero-filled when retained is empty"
+    );
+}

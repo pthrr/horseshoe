@@ -1023,3 +1023,75 @@ fn test_scroll_accum_speed_proportional_to_height() {
         "smaller line height should produce more steps"
     );
 }
+
+// ---- Scroll delta edge case tests (saturating, not panicking) ----
+
+/// Simulate the scroll accumulator with saturating i32 conversion
+/// (matching the hardened code in `handle_pointer_axis`).
+fn simulate_scroll_accum_saturating(deltas: &[f64], line_height: f64) -> Vec<i32> {
+    let mut accum = 0.0f64;
+    let mut steps_out = Vec::new();
+    for &delta in deltas {
+        accum += delta;
+        let steps_f64 = (accum / line_height).trunc();
+        let raw = horseshoe::num::float_to_i64(steps_f64);
+        let steps = i32::try_from(raw).unwrap_or(if steps_f64 < 0.0 { i32::MIN } else { i32::MAX });
+        accum -= f64::from(steps) * line_height;
+        steps_out.push(steps);
+    }
+    steps_out
+}
+
+#[test]
+fn test_scroll_accum_extreme_positive_saturates() {
+    // A huge scroll delta should saturate to i32::MAX, not panic
+    let steps = simulate_scroll_accum_saturating(&[1e18], 1.0);
+    assert_eq!(
+        *steps.first().expect("one step"),
+        i32::MAX,
+        "extreme positive scroll should saturate to i32::MAX"
+    );
+}
+
+#[test]
+fn test_scroll_accum_extreme_negative_saturates() {
+    // A huge negative scroll delta should saturate to i32::MIN, not panic
+    let steps = simulate_scroll_accum_saturating(&[-1e18], 1.0);
+    assert_eq!(
+        *steps.first().expect("one step"),
+        i32::MIN,
+        "extreme negative scroll should saturate to i32::MIN"
+    );
+}
+
+#[test]
+fn test_scroll_accum_very_small_cell_height() {
+    // With cell_height = 1, every pixel produces a step.
+    // Ensure this doesn't overflow when accumulating many events.
+    let steps = simulate_scroll_accum_saturating(&[1000.0], 1.0);
+    assert_eq!(
+        *steps.first().expect("one step"),
+        1000,
+        "1000px with 1px height = 1000 steps"
+    );
+}
+
+#[test]
+fn test_scroll_accum_infinity_saturates() {
+    let steps = simulate_scroll_accum_saturating(&[f64::INFINITY], 19.0);
+    assert_eq!(
+        *steps.first().expect("one step"),
+        i32::MAX,
+        "infinity should saturate"
+    );
+}
+
+#[test]
+fn test_scroll_accum_nan_produces_zero() {
+    let steps = simulate_scroll_accum_saturating(&[f64::NAN], 19.0);
+    assert_eq!(
+        *steps.first().expect("one step"),
+        0,
+        "NaN should produce 0 steps"
+    );
+}
